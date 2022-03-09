@@ -2,6 +2,7 @@
 ;; importing for using.
 ;; threading for piping operator.
 ;; rackunit for testing.
+;; 09.03.2022 -- Finishing the searching
 (require threading rackunit)
 ;; testing threading
 (~>> (list 1 2 3)
