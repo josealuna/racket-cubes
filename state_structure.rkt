@@ -4,11 +4,13 @@
 
 (provide State State-cubes State-states
          state->list
-         state->listofcubes state->filtered state->lofstates is-state-solution?)
+         state->listofcubes state->filtered state->lofstates 
+         is-state-solution?)
 
 
 ;; State cubes reflecting the state of the cubes
-;; From a state we get states 
+;; From a state we get states
+;; TODO we can include a field for storing the way this state is obtained
 (struct State (cubes  ;; Cubes                   --> (Cubes (list (Cube 4 0)  (Cube 3 0)) 1))
                states ;; Recursive form of state --> (State (Cubes (list (Cube 4 0) (Cube 3 0)) 1) 'None))
                )      #:transparent)
