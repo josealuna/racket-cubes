@@ -3,41 +3,9 @@
 ;; threading for piping operator.
 ;; rackunit for testing.
 ;; 09.03.2022 -- Finishing the searching
-(require threading rackunit dyoo-while-loop data/queue)
-
-;; Creamos structures para utilizar
-;; Cube  --> tiene una capacidad y un contenido.
-;; Cubes --> tiene una lista de cubos y un objetivo
-(struct Cube  (capacity content)  #:transparent)
-(struct Cubes (cubes        ;; list of Cube
-               goal         ;; objetive
-               )        #:transparent)
-
-;; Examples of cubos sencillos
-;; ---> con una capacidad y un contenido. 
-(define cube-0 (Cube 4 2))
-(define cube-1 (Cube 3 0))
-
-;; Examples de listas de cubos.
-(define lista-1 (Cubes (list (Cube 4 2)  (Cube 3 0)) 1))
+(require threading rackunit dyoo-while-loop data/queue "state_structure.rkt" "cube_structure.rkt")
 
 
-;; State cubes reflecting the state of the cubes
-;; From a state we get states 
-(struct State (cubes  ;; Cubes                   --> (Cubes (list (Cube 4 0)  (Cube 3 0)) 1))
-               states ;; Recursive form of state --> (State (Cubes (list (Cube 4 0) (Cube 3 0)) 1) 'None))
-               )      #:transparent)
-
-;; Passing from a State to a list of cubes
-;; State -> list of Cubes
-(define (state->list state [acc '()])
-  (cond
-    [(equal? state 'None) acc]  ;; Base case
-    [else
-     (let ([cubes (State-cubes state)]
-           [next  (State-states state)])
-       (state->list next (cons cubes acc)))]))
-  
 
 ;; All posibilities of changing the state of the cubes
 ;; Full all cubes
@@ -75,12 +43,15 @@
 (define (filling cube)
   (let ([cap1 (Cube-capacity cube)])
     (Cube cap1 cap1)))
+;; function for ordering the cubes
+(define order  (λ (cube1 cube2)
+          (> (Cube-capacity cube1)
+             (Cube-capacity cube2))))
+
 
 ;; list of cubes -> function -> (listofcubes -> listofcubes)
 (define (apply-to-cubes function)
-  (define order  (λ (cube1 cube2)
-          (> (Cube-capacity cube1)
-             (Cube-capacity cube2))))
+  ;; function to be used
   (λ (listofcubes)
   (sort (cons (function (car listofcubes))
               (rest listofcubes))
@@ -88,17 +59,12 @@
        
 ;; Applying transbase to all the 
 (define (apply-two-cubes function)
-  ;; auxiliar
-  (define order (λ (cube1 cube2)
-          (> (Cube-capacity cube1)
-             (Cube-capacity cube2))))
   ;; function
   (λ (listofcubes)
     (let* ([from (car listofcubes)]
            [r    (cdr listofcubes)]
            [to   (car r)]
            [rest (rest r)])
-    
     (sort (append (function from to) rest) order))))
 
 
@@ -187,9 +153,12 @@
                           
   
 ;; searching from a initial state to find a solution
-;;
-(define (search initial-state)
-  (let* ([visited       (mutable-set)]     ;; record the visited states
+;; state -> state which is solution
+;; this functin find the first solution from the space of solutions.
+;; Does not find all the solutions. 
+(define (search initial-state [max 100])
+  (let* ([num-iter       0]
+         [visited       (mutable-set)]     ;; record the visited states
          [initial-cubes
           (State-cubes initial-state)]     ;; initial cubes
          [queue-states  (make-queue)]      ;; queue for the states
@@ -202,22 +171,29 @@
      (let*
          ([state  (dequeue! queue-states)])
        (cond
+         [(> num-iter max) (break)]        ;; if we have grat number of iterations.
          [(is-state-solution? state)       ;; we have a solution
           (set! solution state)            ;; set the solution
-          (break)]                           ;; break
+          (break)]                         ;; break
          [else
           (let* ([next-cubes (state->filtered visited state)]
                  [next-states (~>>
                                next-cubes
                                (map (λ (cubes) (State cubes state))))])
 
+            (set! num-iter (+ 1 num-iter))
             (for-each (λ (cubes)  (set-add! visited cubes)) next-cubes)
             (for-each (λ (state)  (enqueue! queue-states state)) next-states)
             (continue))])))
     solution))
 ;; some simple tests
 (module+ test
- (state->list (search base)))
+  ;; (search base 20)                 ;; we can decide the number of iterations 
+  ;; (state->list  (search base 20)) ;; we
+  ;; look for another solution
+  (define base-2
+    (State (Cubes (list (Cube 5 0) (Cube 11 0) (Cube 3 0)) 7) 'None))
+  (state->list  (search base-2 200))) ;; we
 
 
 
