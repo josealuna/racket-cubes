@@ -3,11 +3,8 @@
 ;; threading for piping operator.
 ;; rackunit for testing.
 ;; 09.03.2022 -- Finishing the searching
-(require threading rackunit)
-;; testing threading
-(~>> (list 1 2 3)
-     (map (λ (x)
-            (+ x 1))))
+(require threading rackunit dyoo-while-loop data/queue)
+
 ;; Creamos structures para utilizar
 ;; Cube  --> tiene una capacidad y un contenido.
 ;; Cubes --> tiene una lista de cubos y un objetivo
@@ -30,6 +27,17 @@
 (struct State (cubes  ;; Cubes                   --> (Cubes (list (Cube 4 0)  (Cube 3 0)) 1))
                states ;; Recursive form of state --> (State (Cubes (list (Cube 4 0) (Cube 3 0)) 1) 'None))
                )      #:transparent)
+
+;; Passing from a State to a list of cubes
+;; State -> list of Cubes
+(define (state->list state [acc '()])
+  (cond
+    [(equal? state 'None) acc]  ;; Base case
+    [else
+     (let ([cubes (State-cubes state)]
+           [next  (State-states state)])
+       (state->list next (cons cubes acc)))]))
+  
 
 ;; All posibilities of changing the state of the cubes
 ;; Full all cubes
@@ -134,22 +142,83 @@
 
 
 
-(state->lofstates (State lista-1 'None))
+;; (state->lofstates (State lista-1 'None))
 
 ;; (~>> (list 1 2 3)
 ;;     permutations
 ;;     (map (λ (l) (take l 2))))
 
+;; -----------------------------------------------------------------------------------------------------------------------
+;; ------------------------------------------------- searching part ------------------------------------------------------
+;; -----------------------------------------------------------------------------------------------------------------------
+;; Discover if a Cubes is a solution
+;; Cubes -> boolean
+(define (is-cube-solution? cubes)
+  (let ([goal (Cubes-goal cubes)])
+         (~>>
+          (Cubes-cubes cubes)
+          (map Cube-content)
+          (ormap (λ (x) (equal? x goal))))))
+
+(module+ test
+  ; true propositions
+  (check-true   (ormap (λ (x) (equal? x 2)) (list 1 2 3)))
+  (check-true   (is-cube-solution? (Cubes (list (Cube 4 0) (Cube 3 2)) 2)))
+  (check-true   (is-cube-solution? (Cubes (list (Cube 4 0) (Cube 3 2)) 0)))
+  (check-true   (is-cube-solution? (Cubes (list (Cube 4 4) (Cube 3 2)) 4)))
+  ; false propositions
+  (check-false  (is-cube-solution? (Cubes (list (Cube 4 0) (Cube 3 2)) 3)))
+  (check-false  (ormap (λ (x) (equal? x 4)) (list 1 2 3))))
+
+;; Discover if a State is a solution
+;; State -> boolean
+(define (is-state-solution? state)
+  (let ([cubes (State-cubes state)])
+    (is-cube-solution? cubes)))
+(module+ test
+  (define base      (State (Cubes (list (Cube 4 2) (Cube 3 0)) 1) 'None))
+  (define example-1 (State (Cubes (list (Cube 4 2) (Cube 3 0)) 1) base))
+  (define example-2 (State (Cubes (list (Cube 4 2) (Cube 3 0)) 2) base))
+  ;; true statements tests
+  (check-true  (is-state-solution? example-2))
+  (check-false (is-state-solution? example-1))
+  ;; false statements tests
+  (check-false (is-state-solution? base)))
+                          
+  
+;; searching from a initial state to find a solution
+;;
+(define (search initial-state)
+  (let* ([visited       (mutable-set)]     ;; record the visited states
+         [initial-cubes
+          (State-cubes initial-state)]     ;; initial cubes
+         [queue-states  (make-queue)]      ;; queue for the states
+         [solution 'None])                 ;; solution
+    (set-add! visited initial-cubes)       ;; visited            
+    (enqueue! queue-states initial-state)  ;; queue for the states
+    (while
+     (not (queue-empty? queue-states))     ;; while not empty the queue
+     ;; operating
+     (let*
+         ([state  (dequeue! queue-states)])
+       (cond
+         [(is-state-solution? state)       ;; we have a solution
+          (set! solution state)            ;; set the solution
+          (break)]                           ;; break
+         [else
+          (let* ([next-cubes (state->filtered visited state)]
+                 [next-states (~>>
+                               next-cubes
+                               (map (λ (cubes) (State cubes state))))])
+
+            (for-each (λ (cubes)  (set-add! visited cubes)) next-cubes)
+            (for-each (λ (state)  (enqueue! queue-states state)) next-states)
+            (continue))])))
+    solution))
+;; some simple tests
+(module+ test
+ (state->list (search base)))
 
 
-;; Examples of State
-;; In this way we can filter just the ones in which we are interested for. 
-(define visited (mutable-set))
-;; podemos meter un Cubes en un set
-(set-add! visited    (Cubes (list (Cube 4 0) (Cube 3 0)) 1))
-(set-member? visited (Cubes (list (Cube 4 0) (Cube 3 0)) 1))
-;; ((set-add!
-
-(state->filtered  visited (State lista-1 'None))
 
 ;; We just need a loop for the actualizing the visited until we reach the solution or we reach certain number of interations.
