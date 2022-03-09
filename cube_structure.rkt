@@ -5,6 +5,7 @@
 (provide  Cube Cube-capacity Cube-content             ;; Cube structure and associated
           Cubes Cubes-cubes Cubes-goal                ;; Cubes structure and associated
           transbase empting filling filling           ;; change in the cubes
+          apply-to-cubes apply-two-cubes
           is-cube-solution? )
           
 ;; Creamos structures para utilizar
