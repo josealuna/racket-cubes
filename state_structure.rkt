@@ -29,7 +29,7 @@
 
 ;; state -> list of cubes
 (define (state->listofcubes state)
-    ;; auxiliar for applying the maps
+  ;; auxiliar for applying the maps
   (define (f-aux per f1 function)
     (~>> per
          (map (f1 function))))
